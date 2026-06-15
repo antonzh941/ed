@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                 String         @id @default(cuid())
+  appUserKey         String         @unique
+  telegramUserId     String?        @unique
+  displayName        String?
+  exam               ExamType
+  subject            SubjectType
+  classLabel         String?
+  goalScore          Int?
+  xp                 Int            @default(0)
+  streak             Int            @default(0)
+  weeklyGoal         Int            @default(7)
+  completedThisWeek  Int            @default(0)
+  cyclesBalance      Int            @default(0)
+  starterPaidAt      DateTime?
+  lastYooKassaPaymentId String?    @db.VarChar(64)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  studySessions      StudySession[]
+  achievements       UserAchievement[]
+  paymentEvents      PaymentEvent[]
+  authAccounts       AuthAccount[]
+  solvingSessions    SolvingSession[]
+}
+
+model AuthAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String   @db.VarChar(32)
+  providerUserId String   @db.VarChar(128)
+  email          String?  @db.VarChar(320)
+  displayName    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+}
+
+/// Идемпотентная фиксация зачёта по webhook/API (один yooKassa id — одна обработка).
+model PaymentEvent {
+  yooKassaPaymentId String   @id @db.VarChar(64)
+  appUserKey        String
+  event             String
+  tariff            String?  @db.VarChar(64)
+  cyclesCount       Int?
+  amountValue       String?  @db.VarChar(32)
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [appUserKey], references: [appUserKey], onDelete: Cascade)
+}
+
+model StudySession {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam         ExamType
+  subject      SubjectType
+  taskNumber   String
+  topic        String
+  taskText     String
+  explanation  String?
+  difyConversationId String?       @unique
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  chatMessages ChatMessage[]
+
+  @@index([userId, createdAt])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  studySessionId String
+  studySession   StudySession @relation(fields: [studySessionId], references: [id], onDelete: Cascade)
+  role           ChatRole
+  text           String
+  createdAt      DateTime     @default(now())
+}
+
+model Achievement {
+  id          String            @id @default(cuid())
+  code        String            @unique
+  title       String
+  description String
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}
+
+enum ExamType {
+  OGE
+}
+
+enum SubjectType {
+  russian
+  math
+  geography
+  history
+}
+
+enum ChatRole {
+  student
+  assistant
+}
+
+enum AnswerType {
+  short
+  extended
+}
+
+enum TaskStatus {
+  draft
+  pending
+  approved
+  rejected
+}
+
+enum SessionPhase {
+  understanding
+  plan
+  steps
+  check
+  reflect
+}
+
+enum SessionStatus {
+  active
+  completed
+  abandoned
+}
+
+model Subject {
+  id           String          @id @default(cuid())
+  code         SubjectType     @unique
+  labelRu      String
+  displayOrder Int
+  topics       CodifierTopic[]
+}
+
+model CodifierTopic {
+  id        String   @id @default(cuid())
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  code      String
+  title     String
+  tasks     Task[]
+
+  @@unique([subjectId, code])
+  @@index([subjectId])
+}
+
+model Task {
+  id              String         @id @default(cuid())
+  subjectCode     SubjectType
+  taskNumber      Int
+  topicId         String?
+  topic           CodifierTopic? @relation(fields: [topicId], references: [id])
+  sourceLabel     String?        @db.VarChar(64)
+  conditionMd     String
+  answerType      AnswerType
+  canonicalAnswer String?
+  acceptedAnswers String[]
+  gradingCriteria Json?
+  solutionHint    String?
+  status          TaskStatus     @default(draft)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  sessions        SolvingSession[]
+
+  @@unique([subjectCode, taskNumber, sourceLabel])
+  @@index([subjectCode, taskNumber])
+  @@index([subjectCode, status])
+}
+
+model SolvingSession {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      Task          @relation(fields: [taskId], references: [id])
+  phase     SessionPhase  @default(understanding)
+  hintLevel Int           @default(0)
+  status    SessionStatus @default(active)
+  startedAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  attempts  Attempt[]
+
+  @@index([userId, status])
+  @@index([taskId])
+}
+
+model Attempt {
+  id        String         @id @default(cuid())
+  sessionId String
+  session   SolvingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answerRaw String
+  isCorrect Boolean?
+  score     Int?
+  feedback  String?
+  createdAt DateTime       @default(now())
+
+  @@index([sessionId])
+}

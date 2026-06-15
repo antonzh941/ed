@@ -1,0 +1,43 @@
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Node ─────────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# ─── Env — никогда не коммитить ───────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+# .env.example — коммитить можно и нужно
+
+# ─── Build ────────────────────────────────────────────────────────────────────
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# ─── IDE ──────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/settings.json
+.vscode/launch.json
+
+# ─── Docker volumes / backups ─────────────────────────────────────────────────
+apps/web/data/backups/
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+*.pem
+coverage/
+.vercel/

@@ -1,0 +1,15 @@
+{
+  "name": "sokratai",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "npm --prefix apps/web run dev",
+    "build": "npm --prefix apps/web run build",
+    "start": "npm --prefix apps/web run start",
+    "lint": "npm --prefix apps/web run lint",
+    "rag:ingest": "npm --prefix apps/web run rag:ingest",
+    "prisma:generate": "npm --prefix apps/web run prisma:generate",
+    "prisma:migrate": "npm --prefix apps/web run prisma:migrate",
+    "prisma:studio": "npm --prefix apps/web run prisma:studio"
+  }
+}

@@ -52,10 +52,10 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ai_tutor?schema=public
       REDIS_URL: redis://redis:6379
-      APP_BASE_URL: http://localhost:3001
+      APP_BASE_URL: http://localhost:3000
       NODE_ENV: production
     ports:
-      - "3001:3000"
+      - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,7 +94,7 @@ services:
       - ./apps/web/.env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ai_tutor?schema=public
-      APP_BASE_URL: http://localhost:3001
+      APP_BASE_URL: http://localhost:3000
       NODE_ENV: production
     depends_on:
       web:

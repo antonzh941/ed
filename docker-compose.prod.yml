@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: oge-drive-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ai_tutor}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      # POSTGRES_PASSWORD обязателен — нет небезопасного дефолта
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.migrate
+    container_name: oge-drive-migrate
+    env_file:
+      - ./apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-ai_tutor}?schema=public
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.web
+    container_name: oge-drive-web
+    restart: unless-stopped
+    env_file:
+      - ./apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-ai_tutor}?schema=public
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      YOOKASSA_RETURN_URL: ${YOOKASSA_RETURN_URL:-http://localhost:3000/pay/success}
+      NODE_ENV: production
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    networks:
+      - default
+      - docker_default
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+networks:
+  docker_default:
+    external: true
+
+volumes:
+  postgres_data:

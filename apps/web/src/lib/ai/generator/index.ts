@@ -67,6 +67,13 @@ function answersMatch(canonical: string, validatorAnswer: string): boolean {
   const b = normalise(validatorAnswer);
 
   if (a === b) return true;
+
+  // Compare without internal spaces: "в а б" == "ваб" (sequence of letters)
+  const aNoSpace = a.replace(/\s+/g, "");
+  const bNoSpace = b.replace(/\s+/g, "");
+  if (aNoSpace === bNoSpace) return true;
+
+  // Containment (handles "финляндия" inside "финляндия и эстония")
   if (a.length > 0 && b.length > 0 && (a.includes(b) || b.includes(a))) return true;
 
   // Multiple-choice fallback: "2) Байкал" vs "2"

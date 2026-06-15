@@ -81,6 +81,17 @@ function answersMatch(canonical: string, validatorAnswer: string): boolean {
   const numB = extractChoiceNumber(validatorAnswer);
   if (numA && numB && numA === numB) return true;
 
+  // Correspondence / multi-select fallback: extract digits only and compare
+  // "А — 1, Б — 2" → "12" vs "12" → match
+  const digitsA = canonical.replace(/\D/g, "");
+  const digitsB = validatorAnswer.replace(/\D/g, "");
+  if (digitsA.length > 0 && digitsA === digitsB) return true;
+
+  // Sorted digits match (order-independent for multi-select: "2, 4" vs "4 2")
+  const sortedA = digitsA.split("").sort().join("");
+  const sortedB = digitsB.split("").sort().join("");
+  if (sortedA.length > 0 && sortedA === sortedB) return true;
+
   return false;
 }
 
@@ -91,26 +102,30 @@ function answersMatch(canonical: string, validatorAnswer: string): boolean {
  * Handles: raw JSON, ```json ... ```, ``` ... ```, prose before/after.
  */
 function extractJson(text: string): unknown {
+  // Strip <think>...</think> blocks (deepseek-reasoner produces these)
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
   // 1. Try direct parse (model returned clean JSON)
-  const trimmed = text.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch { /* fall through */ }
+  try { return JSON.parse(cleaned); } catch { /* fall through */ }
 
   // 2. Strip markdown code fence: ```json\n{...}\n```
-  const fenceMatch = trimmed.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  const fenceMatch = cleaned.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   if (fenceMatch) {
-    try {
-      return JSON.parse(fenceMatch[1]);
-    } catch { /* fall through */ }
+    try { return JSON.parse(fenceMatch[1]); } catch { /* fall through */ }
   }
 
-  // 3. Find the outermost {...} in the text (greedy)
-  const braceMatch = trimmed.match(/\{[\s\S]*\}/);
+  // 3. Find all {...} candidates, try from longest to shortest
+  const candidates = [...cleaned.matchAll(/\{[\s\S]*?\}/g)]
+    .map(m => m[0])
+    .sort((a, b) => b.length - a.length);
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate); } catch { /* continue */ }
+  }
+
+  // 4. Greedy match (handles nested objects)
+  const braceMatch = cleaned.match(/\{[\s\S]*\}/);
   if (braceMatch) {
-    try {
-      return JSON.parse(braceMatch[0]);
-    } catch { /* fall through */ }
+    try { return JSON.parse(braceMatch[0]); } catch { /* fall through */ }
   }
 
   throw new SyntaxError(`No valid JSON object found in LLM response (length=${text.length})`);

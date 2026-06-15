@@ -39,7 +39,7 @@ function normalise(raw: string): string {
   return raw
     .toLowerCase()
     .replace(/^\d+[.)]\s*/, "")        // strip leading "4) " or "4. "
-    .replace(/[,;\-–—]/g, " ")         // normalise separators to spaces
+    .replace(/[,;\-–— ]+/g, " ")       // normalise separators to single space
     .replace(/[^а-яёa-z0-9\s]/gi, "")  // keep letters, digits, spaces
     .replace(/\s+/g, " ")
     .trim();

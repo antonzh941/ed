@@ -1,0 +1,104 @@
+# ВНИМАНИЕ: этот файл — только для локальной разработки.
+# Для продакшена используй docker-compose.prod.yml и задай POSTGRES_PASSWORD через переменные окружения.
+services:
+  postgres:
+    image: postgres:16
+    container_name: oge-drive-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ai_tutor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres   # dev-only — не использовать в проде
+    ports:
+      - "5444:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: oge-drive-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+
+  migrate:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.migrate
+    container_name: oge-drive-migrate
+    env_file:
+      - ./apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ai_tutor?schema=public
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.web
+    container_name: oge-drive-web
+    restart: unless-stopped
+    env_file:
+      - ./apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ai_tutor?schema=public
+      REDIS_URL: redis://redis:6379
+      APP_BASE_URL: http://localhost:3001
+      NODE_ENV: production
+    ports:
+      - "3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.worker
+    container_name: oge-drive-worker
+    restart: unless-stopped
+    env_file:
+      - ./apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ai_tutor?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+
+  bot:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.bot
+    container_name: oge-drive-bot
+    restart: unless-stopped
+    env_file:
+      - ./apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ai_tutor?schema=public
+      APP_BASE_URL: http://localhost:3001
+      NODE_ENV: production
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

@@ -196,9 +196,24 @@ export async function generateAndSaveTask(
     }
   }
 
-  // ── 6. Upsert task ─────────────────────────────────────────────────────────
-  const task = await db.task.create({
-    data: {
+  // ── 6. Upsert task (safe on retry) ────────────────────────────────────────
+  const task = await db.task.upsert({
+    where: {
+      subjectCode_taskNumber_sourceLabel: {
+        subjectCode: subject,
+        taskNumber,
+        sourceLabel: batchLabel,
+      },
+    },
+    update: {
+      conditionMd: parsed.conditionMd,
+      answerType: isExtended ? "extended" : "short",
+      canonicalAnswer: parsed.canonicalAnswer,
+      acceptedAnswers: parsed.acceptedAnswers,
+      solutionHint: parsed.solutionHint,
+      status: finalStatus,
+    },
+    create: {
       subjectCode: subject,
       taskNumber,
       sourceLabel: batchLabel,

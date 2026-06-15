@@ -190,7 +190,7 @@ export function LearningWorkspace({
             </div>
           ) : null}
 
-          <div className="grid gap-6 lg:grid-cols-2 lg:h-[calc(100vh-240px)]">
+          <div className="grid gap-6 lg:grid-cols-[2fr_3fr] lg:h-[calc(100vh-240px)]">
             <div className="space-y-6 overflow-y-auto">
               {currentStep === 1 ? (
                 <>
@@ -445,7 +445,7 @@ export function LearningWorkspace({
                       <div className="flex-1">
                         <div className="rounded-2xl rounded-tl-sm bg-[#F8F7F4] p-4">
                           <p className="leading-relaxed text-[#111111]">
-                            Привет! Я помогу тебе разобраться с этим заданием. Напиши, что ты уже понял, где есть сомнения или какой шаг хочешь проверить. Я буду вести тебя по шагам, не давая готовый ответ.
+                            Привет! Напиши, что уже понял или где застрял — разберёмся вместе.
                           </p>
                         </div>
                       </div>
@@ -498,19 +498,6 @@ export function LearningWorkspace({
                       />
                     ) : null}
 
-                    <div className="rounded-2xl border border-[#22C55E]/20 bg-gradient-to-br from-[#22C55E]/10 to-[#16A34A]/10 p-6">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#22C55E]">
-                          <Sparkles className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h4 className="mb-1 font-semibold text-[#111111]">Метод Сократа</h4>
-                          <p className="text-sm text-[#6B7280]">
-                            Я не даю готовые ответы, а задаю наводящие вопросы, чтобы ты сам пришёл к решению
-                          </p>
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   <div className="border-t border-black/5 p-6">
@@ -530,9 +517,6 @@ export function LearningWorkspace({
                         <Send className="h-5 w-5" />
                       </button>
                     </div>
-                    <p className="mt-3 text-center text-xs text-[#6B7280]">
-                      Осталось {controller.dashboardSummary?.entitlements.cyclesBalance ?? 0} советов
-                    </p>
                   </div>
                 </>
               )}

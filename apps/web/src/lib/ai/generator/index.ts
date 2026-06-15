@@ -177,6 +177,11 @@ export async function generateAndSaveTask(
     taskNumber: String(taskNumber),
   });
 
+  // Guard: empty response → throw so BullMQ retries the job
+  if (!genResult.text.trim()) {
+    throw new Error("Empty response from LLM — will retry");
+  }
+
   // ── 3. Parse JSON ───────────────────────────────────────────────────────────
   let parsed;
   try {

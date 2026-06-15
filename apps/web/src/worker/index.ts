@@ -25,7 +25,7 @@ import { checkAndRefillBank } from "@/lib/ai/generator/low-water";
 async function runStartupCheck() {
   console.log("[worker] Running low-water check on startup…");
   try {
-    const results = await checkAndRefillBank(["geography"]);
+    const results = await checkAndRefillBank(["geography", "math", "history", "russian"]);
     const total = results.reduce((s, r) => s + r.jobsEnqueued, 0);
     if (total > 0) {
       console.log(`[worker] Enqueued ${total} generation jobs:`);
@@ -71,10 +71,10 @@ const worker = new Worker<GenerateTaskJobData, GenerateTaskJobResult>(
   },
   {
     connection: getRedisConnection(),
-    concurrency: 2,          // max 2 parallel LLM calls
+    concurrency: 1,           // sequential — avoids DeepSeek rate-limit empty responses
     limiter: {
-      max: 10,
-      duration: 60_000,      // max 10 jobs per minute (LLM rate limit guard)
+      max: 6,
+      duration: 60_000,       // max 6 jobs per minute (2 LLM calls each = 12 req/min)
     },
   },
 );

@@ -517,6 +517,9 @@ export function LearningWorkspace({
                         <Send className="h-5 w-5" />
                       </button>
                     </div>
+                    <p className="mt-3 text-center text-xs text-[#6B7280]">
+                      Осталось {controller.dashboardSummary?.entitlements.cyclesBalance ?? 0} советов
+                    </p>
                   </div>
                 </>
               )}

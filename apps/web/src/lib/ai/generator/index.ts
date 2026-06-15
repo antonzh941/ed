@@ -195,7 +195,7 @@ export async function generateAndSaveTask(
   let rejectionReason: string | undefined;
 
   if (!isExtended) {
-    const valMessages = buildValidationMessages(parsed.conditionMd);
+    const valMessages = buildValidationMessages(parsed.conditionMd, subject);
 
     const valResult = await gatewayGenerate({
       role: "grader",

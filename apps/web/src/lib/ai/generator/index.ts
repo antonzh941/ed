@@ -28,47 +28,85 @@ const EXTENDED_TASK_NUMBERS = new Set([12, 28, 29, 30]);
 // ─── answer normaliser ────────────────────────────────────────────────────────
 
 /**
- * Normalise an answer string for fuzzy comparison:
- * lowercase → strip leading "N) " prefix → remove extra punctuation/spaces.
+ * Normalise an answer string for fuzzy comparison.
+ * Handles:
+ *   "4) Мехико" → "мехико"          (multiple-choice: strip number prefix)
+ *   "3, 2, 1"   → "3 2 1"           (sequence: normalise separators)
+ *   "А-2, Б-3"  → "а 2 б 3"        (correspondence)
+ *   "Финляндия" → "финляндия"       (free text)
  */
 function normalise(raw: string): string {
   return raw
     .toLowerCase()
-    .replace(/^\d+\)\s*/, "")          // strip "4) " prefix
-    .replace(/[^а-яёa-z0-9,\s]/gi, "") // keep letters, digits, commas, spaces
+    .replace(/^\d+[.)]\s*/, "")        // strip leading "4) " or "4. "
+    .replace(/[,;\-–—]/g, " ")         // normalise separators to spaces
+    .replace(/[^а-яёa-z0-9\s]/gi, "")  // keep letters, digits, spaces
     .replace(/\s+/g, " ")
     .trim();
 }
 
 /**
+ * Extract just the leading digit(s) from a multiple-choice answer.
+ * "4) Мехико" → "4", "2" → "2"
+ */
+function extractChoiceNumber(raw: string): string | null {
+  const m = raw.trim().match(/^(\d+)/);
+  return m ? m[1] : null;
+}
+
+/**
  * Returns true if the validator's answer is close enough to the canonical one.
- * "Close enough" = one normalised string contains the other (covers abbreviations,
- * word order, minor wording differences).
+ *
+ * Strategy (in order):
+ *  1. Exact match after normalisation.
+ *  2. Containment: one normalised string contains the other.
+ *  3. For multiple-choice: compare just the choice numbers.
  */
 function answersMatch(canonical: string, validatorAnswer: string): boolean {
   const a = normalise(canonical);
   const b = normalise(validatorAnswer);
-  return a === b || a.includes(b) || b.includes(a);
+
+  if (a === b) return true;
+  if (a.length > 0 && b.length > 0 && (a.includes(b) || b.includes(a))) return true;
+
+  // Multiple-choice fallback: "2) Байкал" vs "2"
+  const numA = extractChoiceNumber(canonical);
+  const numB = extractChoiceNumber(validatorAnswer);
+  if (numA && numB && numA === numB) return true;
+
+  return false;
 }
 
 // ─── JSON extractor ───────────────────────────────────────────────────────────
 
 /**
  * Extract the first JSON object from an LLM response.
- * The model might wrap JSON in markdown code blocks or add prose.
+ * Handles: raw JSON, ```json ... ```, ``` ... ```, prose before/after.
  */
 function extractJson(text: string): unknown {
-  // Try direct parse first
+  // 1. Try direct parse (model returned clean JSON)
+  const trimmed = text.trim();
   try {
-    return JSON.parse(text);
-  } catch {
-    // Try to find {...} in the text
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) {
-      return JSON.parse(match[0]);
-    }
-    throw new SyntaxError("No JSON object found in LLM response");
+    return JSON.parse(trimmed);
+  } catch { /* fall through */ }
+
+  // 2. Strip markdown code fence: ```json\n{...}\n```
+  const fenceMatch = trimmed.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  if (fenceMatch) {
+    try {
+      return JSON.parse(fenceMatch[1]);
+    } catch { /* fall through */ }
   }
+
+  // 3. Find the outermost {...} in the text (greedy)
+  const braceMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (braceMatch) {
+    try {
+      return JSON.parse(braceMatch[0]);
+    } catch { /* fall through */ }
+  }
+
+  throw new SyntaxError(`No valid JSON object found in LLM response (length=${text.length})`);
 }
 
 // ─── main export ──────────────────────────────────────────────────────────────

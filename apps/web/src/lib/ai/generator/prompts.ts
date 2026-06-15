@@ -4,8 +4,8 @@ import path from "node:path";
 import type { SubjectType } from "@prisma/client";
 
 import type { GatewayMessage } from "@/lib/ai/gateway";
-import { getTaskBlueprintSummary } from "@/lib/task-blueprints";
-import type { ExamCode, SubjectCode } from "@/lib/task-blueprints";
+import type { SubjectCode } from "@/lib/task-blueprints";
+import { getGeographyFormat } from "./geography-formats";
 
 // ─── template loader ──────────────────────────────────────────────────────────
 
@@ -19,6 +19,24 @@ function getGeneratorTemplate(): string {
   return _generatorTemplate;
 }
 
+// ─── format instruction resolver ─────────────────────────────────────────────
+
+function resolveFormatInstruction(subject: SubjectType, taskNumber: number): string {
+  if (subject === "geography") {
+    const fmt = getGeographyFormat(taskNumber);
+    if (fmt) {
+      return [
+        `**Что проверяет задание:** ${fmt.tests}`,
+        `**Формат ответа:** ${fmt.answerFormat}`,
+        "",
+        fmt.instruction,
+      ].join("\n");
+    }
+  }
+  // Fallback for other subjects
+  return `Задание типа ${taskNumber} по предмету ${subject}. Следуй формату ОГЭ ФИПИ.`;
+}
+
 // ─── example formatter ────────────────────────────────────────────────────────
 
 export interface FewShotExample {
@@ -28,19 +46,20 @@ export interface FewShotExample {
 }
 
 function formatExamples(examples: FewShotExample[]): string {
-  if (examples.length === 0) return "Примеры не предоставлены.";
+  if (examples.length === 0) return "Примеры недоступны — создай задание самостоятельно.";
   return examples
     .map((ex, i) =>
       [
-        `## Пример ${i + 1}${ex.sourceLabel ? ` (вариант ${ex.sourceLabel})` : ""}`,
-        `**Условие:**\n${ex.conditionMd}`,
-        `**Правильный ответ:** ${ex.canonicalAnswer ?? "(нет данных)"}`,
+        `### Пример ${i + 1}${ex.sourceLabel ? ` (вариант ${ex.sourceLabel})` : ""}`,
+        `**Условие:**`,
+        ex.conditionMd,
+        `**Ответ:** ${ex.canonicalAnswer ?? "(нет данных)"}`,
       ].join("\n\n"),
     )
     .join("\n\n---\n\n");
 }
 
-// ─── generation prompt builder ────────────────────────────────────────────────
+// ─── generation prompt ────────────────────────────────────────────────────────
 
 export interface GenerationPromptParams {
   subject: SubjectType;
@@ -51,28 +70,26 @@ export interface GenerationPromptParams {
 export function buildGenerationMessages(
   params: GenerationPromptParams,
 ): GatewayMessage[] {
-  const blueprint = getTaskBlueprintSummary("OGE", params.subject as SubjectCode, String(params.taskNumber));
-  const examples = formatExamples(params.examples);
+  const { subject, taskNumber, examples } = params;
+
+  const formatInstruction = resolveFormatInstruction(subject, taskNumber);
+  const exampleText = formatExamples(examples);
 
   const systemPrompt = getGeneratorTemplate()
-    .replace("{{BLUEPRINT}}", blueprint)
-    .replace("{{EXAMPLES}}", examples);
+    .replace("{{FORMAT_INSTRUCTION}}", formatInstruction)
+    .replace("{{EXAMPLES}}", exampleText);
 
   return [
     { role: "system", content: systemPrompt },
     {
       role: "user",
-      content: `Сгенерируй ОДНО новое задание ОГЭ по географии, тип ${params.taskNumber}.`,
+      content: `Сгенерируй ОДНО новое задание ОГЭ по географии, тип ${taskNumber}. Ответь только JSON.`,
     },
   ];
 }
 
-// ─── validation prompt builder ────────────────────────────────────────────────
+// ─── validation prompt ────────────────────────────────────────────────────────
 
-/**
- * Messages for the validator (grader role).
- * The validator receives the task WITHOUT the answer and must solve it.
- */
 export function buildValidationMessages(conditionMd: string): GatewayMessage[] {
   return [
     {
@@ -80,7 +97,7 @@ export function buildValidationMessages(conditionMd: string): GatewayMessage[] {
       content: [
         "Ты решаешь задание ОГЭ по географии.",
         "Ответь ОДНОЙ строкой — только ответ, без объяснений и рассуждений.",
-        "Формат: точно такой же, как предполагает задание (цифра, слово, последовательность цифр и т.д.).",
+        "Формат ответа должен точно совпадать с тем, что ожидает задание (цифра, слово, последовательность цифр и т.д.).",
       ].join("\n"),
     },
     {

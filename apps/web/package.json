@@ -1,0 +1,55 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "telegram:bot": "node --env-file-if-exists=.env scripts/telegram-bot.mjs",
+    "rag:ingest": "node scripts/ingest-rag.mjs",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
+    "prisma:studio": "prisma studio --config prisma.config.ts",
+    "db:backup": "node scripts/db-backup.mjs",
+    "worker": "tsx --tsconfig tsconfig.json src/worker/index.ts",
+    "worker:check": "tsx --tsconfig tsconfig.json -e \"require('./src/lib/ai/generator/low-water').checkAndRefillBank().then(r=>console.log(JSON.stringify(r,null,2)))\""
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^1.3.22",
+    "@prisma/adapter-pg": "^7.7.0",
+    "@prisma/client": "^7.0.0",
+    "@vkid/sdk": "^2.6.1",
+    "ai": "^4.3.16",
+    "bullmq": "^5.78.1",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.38.0",
+    "ioredis": "^5.10.1",
+    "langfuse": "^3.36.0",
+    "lucide-react": "^1.8.0",
+    "next": "16.2.4",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.20.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "prisma": "^7.7.0",
+    "tailwindcss": "^4",
+    "tsx": "^4.19.3",
+    "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}
